@@ -1,3 +1,6 @@
 # Keep the local Windows runtime out of Git; publish it in release assets.
 ffmpeg-master-latest-win64-gpl-shared/bin/*.exe
 ffmpeg-master-latest-win64-gpl-shared/bin/*.dll
+launcher/bundle.zip
+launcher/bin/
+launcher/obj/
