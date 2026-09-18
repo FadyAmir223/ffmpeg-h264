@@ -67,8 +67,8 @@ jobs:
           for ($i = 0; $i -lt $files.Count; $i++) { $sed += "%FILE$i%=" }
           $sedPath = Join-Path $env:RUNNER_TEMP 'h264.sed'
           Set-Content -Path $sedPath -Value $sed -Encoding Ascii
-          & "$env:WINDIR\System32\iexpress.exe" /N /Q /M $sedPath
-          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw 'IExpress failed to build h264.exe.' }
+          $process = Start-Process -FilePath "$env:WINDIR\System32\iexpress.exe" -ArgumentList "/N /Q /M `"$sedPath`"" -Wait -PassThru
+          if ($process.ExitCode -ne 0 -or -not (Test-Path $output)) { throw "IExpress failed to build h264.exe (exit $($process.ExitCode))." }
           $extracted = Join-Path $env:RUNNER_TEMP 'h264-extracted'
           New-Item -ItemType Directory -Path $extracted | Out-Null
           & $output /C "/T:$extracted" /Q
