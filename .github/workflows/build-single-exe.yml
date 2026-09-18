@@ -1,0 +1,89 @@
+name: Build single Windows executable
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download current runtime bundle
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v1.0.0 --pattern h264-windows-x64.zip --dir $env:RUNNER_TEMP
+          Expand-Archive (Join-Path $env:RUNNER_TEMP 'h264-windows-x64.zip') (Join-Path $env:RUNNER_TEMP 'bundle')
+
+      - name: Build and check h264.exe
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'h264-stage'
+          $bundle = Join-Path $env:RUNNER_TEMP 'bundle'
+          $output = Join-Path $env:GITHUB_WORKSPACE 'h264.exe'
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          Copy-Item (Join-Path $bundle 'bin\*') $stage
+          Copy-Item (Join-Path $bundle 'LICENSE.txt') $stage
+          $files = @(Get-ChildItem $stage -File | Sort-Object Name)
+          $sed = @(
+            '[Version]'
+            'Class=IEXPRESS'
+            'SEDVersion=3'
+            '[Options]'
+            'PackagePurpose=InstallApp'
+            'ShowInstallProgramWindow=1'
+            'HideExtractAnimation=1'
+            'UseLongFileName=1'
+            'InsideCompressed=0'
+            'CAB_FixedSize=0'
+            'CAB_ResvCodeSigning=0'
+            'RebootMode=N'
+            'InstallPrompt=%InstallPrompt%'
+            'DisplayLicense=%DisplayLicense%'
+            'FinishMessage=%FinishMessage%'
+            "TargetName=$output"
+            'FriendlyName=%FriendlyName%'
+            'AppLaunched=%AppLaunched%'
+            'PostInstallCmd=%PostInstallCmd%'
+            'AdminQuietInstCmd=%AdminQuietInstCmd%'
+            'UserQuietInstCmd=%UserQuietInstCmd%'
+            'SourceFiles=SourceFiles'
+            '[Strings]'
+            'InstallPrompt='
+            'DisplayLicense='
+            'FinishMessage='
+            'FriendlyName=H264 Converter'
+            'AppLaunched=cmd.exe /c h264.bat'
+            'PostInstallCmd=<None>'
+            'AdminQuietInstCmd='
+            'UserQuietInstCmd='
+          )
+          for ($i = 0; $i -lt $files.Count; $i++) { $sed += "FILE$i=`"$($files[$i].Name)`"" }
+          $sed += '[SourceFiles]', "SourceFiles0=$stage", '[SourceFiles0]'
+          for ($i = 0; $i -lt $files.Count; $i++) { $sed += "%FILE$i%=" }
+          $sedPath = Join-Path $env:RUNNER_TEMP 'h264.sed'
+          Set-Content -Path $sedPath -Value $sed -Encoding Ascii
+          & "$env:WINDIR\System32\iexpress.exe" /N /Q /M $sedPath
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw 'IExpress failed to build h264.exe.' }
+          $extracted = Join-Path $env:RUNNER_TEMP 'h264-extracted'
+          New-Item -ItemType Directory -Path $extracted | Out-Null
+          & $output /C "/T:$extracted" /Q
+          if ($LASTEXITCODE -ne 0) { throw 'h264.exe did not extract.' }
+          foreach ($file in $files) {
+            $actual = Join-Path $extracted $file.Name
+            if (-not (Test-Path $actual) -or (Get-FileHash $actual).Hash -ne (Get-FileHash $file.FullName).Hash) {
+              throw "Extracted file differs: $($file.Name)"
+            }
+          }
+          & (Join-Path $extracted 'ffmpeg.exe') -version | Select-Object -First 1
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged ffmpeg.exe did not start.' }
+
+      - name: Upload single executable to release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload v1.0.0 h264.exe
