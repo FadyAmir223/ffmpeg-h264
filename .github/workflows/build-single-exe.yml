@@ -11,14 +11,23 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-      - name: Download current runtime bundle
+      - name: Assemble runtime bundle
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download v1.0.0 --pattern h264-windows-x64.zip --dir $env:RUNNER_TEMP
-          Copy-Item (Join-Path $env:RUNNER_TEMP 'h264-windows-x64.zip') launcher/bundle.zip
-          Expand-Archive launcher/bundle.zip (Join-Path $env:RUNNER_TEMP 'bundle')
+          gh release download latest -R BtbN/FFmpeg-Builds --pattern ffmpeg-master-latest-win64-gpl-shared.zip --dir $env:RUNNER_TEMP
+          $unpacked = Join-Path $env:RUNNER_TEMP 'ffmpeg'
+          Expand-Archive (Join-Path $env:RUNNER_TEMP 'ffmpeg-master-latest-win64-gpl-shared.zip') $unpacked
+          $sourceBin = (Get-ChildItem $unpacked -Filter ffmpeg.exe -Recurse -File | Select-Object -First 1).DirectoryName
+          if (-not $sourceBin) { throw 'FFmpeg executable is missing from the downloaded build.' }
+          $bundle = Join-Path $env:RUNNER_TEMP 'bundle'
+          $bundleBin = Join-Path $bundle 'bin'
+          New-Item -ItemType Directory $bundleBin | Out-Null
+          Copy-Item (Join-Path $sourceBin 'ffmpeg.exe'), (Join-Path $sourceBin '*.dll') $bundleBin
+          Copy-Item h264.bat, h264.ps1 $bundleBin
+          Copy-Item (Join-Path (Split-Path $sourceBin -Parent) 'LICENSE.txt') $bundle
+          Compress-Archive (Join-Path $bundle '*') launcher/bundle.zip
 
       - name: Compile and test h264.exe
         shell: pwsh
@@ -42,4 +51,4 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload v1.0.0 publish/h264.exe
+        run: gh release upload v1.0.0 publish/h264.exe --clobber
