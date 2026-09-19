@@ -30,7 +30,7 @@ Before publishing, a developer needs:
 - a GitHub token with repository contents write access when using `gh` locally;
 - the new release tag and notes.
 
-The workflow is [`.github/workflows/build-single-exe.yml`](.github/workflows/build-single-exe.yml). Its last command uploads to the `v1.1.2` release. Change that tag for the next release, commit, and push it before triggering the build.
+The workflow is [`.github/workflows/build-single-exe.yml`](.github/workflows/build-single-exe.yml). Its last command uploads to the `v1.1.3` release. Change that tag for the next release, commit, and push it before triggering the build.
 
 Create the corresponding GitHub Release first. The executable upload replaces an existing `h264.exe` asset for that tag.
 
@@ -47,7 +47,7 @@ Create the corresponding GitHub Release first. The executable upload replaces an
 The CLI can create the release and start the same hosted Windows build:
 
 ```bash
-gh release create v1.1.2 --title "v1.1.2" --generate-notes
+gh release create v1.1.3 --title "v1.1.3" --generate-notes
 gh workflow run build-single-exe.yml --ref main
 gh run watch
 ```

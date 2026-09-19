@@ -88,7 +88,7 @@ try {
             [IO.Directory]::CreateDirectory($destinationDirectory) | Out-Null
             $temporary = Join-Path $destinationDirectory ('.' + [guid]::NewGuid().ToString('N') + '.mp4')
             Send-GuiProgress 'Temporary' $index $videos.Count $item.FullName 0 $temporary
-            Write-Host "Converting: $($item.FullName)"
+            Write-Host "Converting video $index of $($videos.Count): $($item.FullName)"
             try {
                 $durationText = & $ffprobe -v error -show_entries format=duration -of 'default=noprint_wrappers=1:nokey=1' $item.FullName
                 $duration = 0.0
