@@ -104,8 +104,8 @@ internal sealed record ConversionUpdate(
 internal sealed class ConverterForm : Form
 {
     private readonly string _script;
-    private readonly TextBox _from = new() { Dock = DockStyle.Fill, AllowDrop = true };
-    private readonly TextBox _to = new() { Dock = DockStyle.Fill, AllowDrop = true };
+    private readonly TextBox _from = FolderDropBox("Drop source folder here, or paste a path");
+    private readonly TextBox _to = FolderDropBox("Drop destination folder here, or paste a path");
     private readonly Button _submit = new() { Text = "Convert", AutoSize = true };
     private readonly Button _sound = new() { Text = "Mute sound", AutoSize = true };
     private readonly Button _chooseSound = new() { Text = "Choose sound...", AutoSize = true };
@@ -114,6 +114,7 @@ internal sealed class ConverterForm : Form
     private readonly ProgressBar _progress = new() { Dock = DockStyle.Fill };
     private bool _running;
     private bool _closeWhenStopped;
+    private bool _muted;
     private string? _soundPath;
     private CancellationTokenSource? _cancellation;
 
@@ -165,7 +166,14 @@ internal sealed class ConverterForm : Form
 
         AcceptButton = _submit;
         _submit.Click += Convert;
-        _sound.Click += (_, _) => _sound.Text = _sound.Text == "Mute sound" ? "Unmute sound" : "Mute sound";
+        _muted = ReadMuted();
+        UpdateSoundButton();
+        _sound.Click += (_, _) =>
+        {
+            _muted = !_muted;
+            SaveMuted();
+            UpdateSoundButton();
+        };
         _chooseSound.Click += ChooseSound;
         FormClosing += (_, eventArgs) =>
         {
@@ -213,6 +221,37 @@ internal sealed class ConverterForm : Form
         layout.Controls.Add(browse, 2, row);
     }
 
+    private static TextBox FolderDropBox(string placeholder) => new()
+    {
+        Dock = DockStyle.Fill,
+        AllowDrop = true,
+        Multiline = true,
+        Height = 52,
+        PlaceholderText = placeholder
+    };
+
+    private static string MuteSettingsPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "H264OldReceiverConverter", "muted");
+
+    private static bool ReadMuted()
+    {
+        try { return File.ReadAllText(MuteSettingsPath) == "1"; }
+        catch { return false; }
+    }
+
+    private void SaveMuted()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(MuteSettingsPath)!);
+            File.WriteAllText(MuteSettingsPath, _muted ? "1" : "0");
+        }
+        catch { } // Settings must not prevent conversion.
+    }
+
+    private void UpdateSoundButton() => _sound.Text = _muted ? "Unmute sound" : "Mute sound";
+
     private void ChooseSound(object? sender, EventArgs eventArgs)
     {
         using var dialog = new OpenFileDialog
@@ -223,7 +262,9 @@ internal sealed class ConverterForm : Form
         };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
         _soundPath = dialog.FileName;
-        _sound.Text = "Mute sound";
+        _muted = false;
+        SaveMuted();
+        UpdateSoundButton();
     }
 
     private async void Convert(object? sender, EventArgs eventArgs)
@@ -254,7 +295,7 @@ internal sealed class ConverterForm : Form
             var exitCode = await Program.RunConverter(
                 _script, input, output, ShowProgress, _cancellation.Token);
             _status.Text = exitCode == 0 ? "Conversion finished." : "Conversion finished with errors.";
-            if (_sound.Text == "Mute sound")
+            if (!_muted)
             {
                 try
                 {

@@ -48,4 +48,4 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload v1.1.1 publish/h264.exe --clobber
+        run: gh release upload v1.1.2 publish/h264.exe --clobber
