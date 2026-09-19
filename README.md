@@ -12,13 +12,13 @@ It is a single Windows x64 executable. FFmpeg and the converter script are conta
 
 1. Download `h264.exe` from the [latest release](https://github.com/FadyAmir223/ffmpeg-h264/releases/latest).
 2. Run `h264.exe` on a Windows 64 bit computer.
-3. Use **Browse** beside **From** to choose the folder containing your videos.
-4. Use **Browse** beside **To** to choose a different destination folder.
-5. Click **Convert**. The window shows the current video and its progress until conversion is complete, then plays a short sound. Use **Mute sound** to turn the sound off. Converted files are written as `.mp4` files in the output folder, preserving subfolders.
+3. Choose the folder containing your videos beside **From**. You can browse, paste its path, or drag the folder from File Explorer onto the box.
+4. Choose a different destination folder beside **To** the same way.
+5. Click **Convert**. The window shows the current video and its progress until conversion is complete, then plays a short sound. Use **Mute sound** to turn it off or **Choose sound** to select another WAV file. Converted files are written as `.mp4` files in the output folder, preserving subfolders.
 
 The converter reads `.mp4`, `.mkv`, `.webm`, `.avi`, `.mov`, `.flv`, `.ts`, and `.m4v` files. Files whose output MP4 already exists are skipped. Do not choose the same folder for input and output.
 
-Keep the converter window open until the job finishes. A failed file does not stop the remaining files from converting.
+Closing the window during conversion asks for confirmation, stops FFmpeg, and removes the unfinished output file. Videos completed earlier in the same run are kept. A failed file does not stop the remaining files from converting.
 
 ## Build and publish a release
 

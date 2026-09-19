@@ -16,13 +16,14 @@ function Get-Folder($label, $path) {
     (Get-Item -LiteralPath $path).FullName
 }
 
-function Send-GuiProgress($eventName, $index, $total, $path, $percent) {
+function Send-GuiProgress($eventName, $index, $total, $path, $percent, $temporary = $null) {
     $message = [pscustomobject]@{
         Event = $eventName
         Index = $index
         Total = $total
         Path = $path
         Percent = $percent
+        Temporary = $temporary
     } | ConvertTo-Json -Compress
     [Console]::Out.WriteLine("H264GUI:$message")
 }
@@ -86,6 +87,7 @@ try {
 
             [IO.Directory]::CreateDirectory($destinationDirectory) | Out-Null
             $temporary = Join-Path $destinationDirectory ('.' + [guid]::NewGuid().ToString('N') + '.mp4')
+            Send-GuiProgress 'Temporary' $index $videos.Count $item.FullName 0 $temporary
             Write-Host "Converting: $($item.FullName)"
             try {
                 $durationText = & $ffprobe -v error -show_entries format=duration -of 'default=noprint_wrappers=1:nokey=1' $item.FullName

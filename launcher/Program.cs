@@ -41,8 +41,10 @@ internal static class Program
     }
 
     internal static async Task<int> RunConverter(
-        string script, string input, string output, Action<ConversionUpdate>? report = null)
+        string script, string input, string output, Action<ConversionUpdate>? report = null,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var process = new ProcessStartInfo("powershell.exe")
         {
             CreateNoWindow = true,
@@ -62,32 +64,58 @@ internal static class Program
 
         using var child = Process.Start(process)
             ?? throw new InvalidOperationException("Could not start the converter.");
-        var errors = child.StandardError.ReadToEndAsync();
-        while (await child.StandardOutput.ReadLineAsync() is { } line)
+        var temporaryFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using var cancellation = cancellationToken.Register(() =>
         {
-            if (!line.StartsWith("H264GUI:")) continue;
-            var update = JsonSerializer.Deserialize<ConversionUpdate>(line[8..]);
-            if (update is not null) report?.Invoke(update);
+            try { if (!child.HasExited) child.Kill(entireProcessTree: true); }
+            catch (InvalidOperationException) { }
+            catch (System.ComponentModel.Win32Exception) { }
+        });
+        var errors = child.StandardError.ReadToEndAsync();
+        try
+        {
+            while (await child.StandardOutput.ReadLineAsync() is { } line)
+            {
+                if (!line.StartsWith("H264GUI:")) continue;
+                var update = JsonSerializer.Deserialize<ConversionUpdate>(line[8..]);
+                if (update is null) continue;
+                if (!string.IsNullOrEmpty(update.Temporary)) temporaryFiles.Add(update.Temporary);
+                report?.Invoke(update);
+            }
+            await child.WaitForExitAsync();
+            await errors;
+            cancellationToken.ThrowIfCancellationRequested();
+            return child.ExitCode;
         }
-        await child.WaitForExitAsync();
-        await errors;
-        return child.ExitCode;
+        finally
+        {
+            if (cancellationToken.IsCancellationRequested)
+                foreach (var path in temporaryFiles)
+                    try { File.Delete(path); }
+                    catch (IOException) { }
+                    catch (UnauthorizedAccessException) { }
+        }
     }
 }
 
-internal sealed record ConversionUpdate(string Event, int Index, int Total, string Path, int Percent);
+internal sealed record ConversionUpdate(
+    string Event, int Index, int Total, string Path, int Percent, string? Temporary = null);
 
 internal sealed class ConverterForm : Form
 {
     private readonly string _script;
-    private readonly TextBox _from = new() { Dock = DockStyle.Fill };
-    private readonly TextBox _to = new() { Dock = DockStyle.Fill };
+    private readonly TextBox _from = new() { Dock = DockStyle.Fill, AllowDrop = true };
+    private readonly TextBox _to = new() { Dock = DockStyle.Fill, AllowDrop = true };
     private readonly Button _submit = new() { Text = "Convert", AutoSize = true };
     private readonly Button _sound = new() { Text = "Mute sound", AutoSize = true };
+    private readonly Button _chooseSound = new() { Text = "Choose sound...", AutoSize = true };
     private readonly Label _status = new() { Text = "Choose the source and destination folders.", AutoSize = true };
     private readonly Label _currentFile = new() { AutoEllipsis = true, Dock = DockStyle.Fill, Height = 24 };
     private readonly ProgressBar _progress = new() { Dock = DockStyle.Fill };
     private bool _running;
+    private bool _closeWhenStopped;
+    private string? _soundPath;
+    private CancellationTokenSource? _cancellation;
 
     internal ConverterForm(string script)
     {
@@ -122,6 +150,7 @@ internal sealed class ConverterForm : Form
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Anchor = AnchorStyles.Right
         };
+        actions.Controls.Add(_chooseSound);
         actions.Controls.Add(_sound);
         actions.Controls.Add(_submit);
         layout.Controls.Add(actions, 1, 2);
@@ -137,12 +166,19 @@ internal sealed class ConverterForm : Form
         AcceptButton = _submit;
         _submit.Click += Convert;
         _sound.Click += (_, _) => _sound.Text = _sound.Text == "Mute sound" ? "Unmute sound" : "Mute sound";
+        _chooseSound.Click += ChooseSound;
         FormClosing += (_, eventArgs) =>
         {
             if (!_running) return;
             eventArgs.Cancel = true;
-            MessageBox.Show("Please wait for the conversion to finish.", Text,
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (_closeWhenStopped) return;
+            if (MessageBox.Show("Cancel the conversion and close? The unfinished output will be removed.",
+                    Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+
+            _closeWhenStopped = true;
+            _status.Text = "Cancelling...";
+            _cancellation?.Cancel();
         };
     }
 
@@ -160,10 +196,34 @@ internal sealed class ConverterForm : Form
             if (dialog.ShowDialog(this) == DialogResult.OK)
                 textBox.Text = dialog.SelectedPath;
         };
+        textBox.DragEnter += (_, eventArgs) =>
+        {
+            if (eventArgs.Data?.GetData(DataFormats.FileDrop) is string[] { Length: 1 } paths &&
+                Directory.Exists(paths[0]))
+                eventArgs.Effect = DragDropEffects.Copy;
+        };
+        textBox.DragDrop += (_, eventArgs) =>
+        {
+            if (eventArgs.Data?.GetData(DataFormats.FileDrop) is string[] { Length: 1 } paths)
+                textBox.Text = paths[0];
+        };
 
         layout.Controls.Add(new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left }, 0, row);
         layout.Controls.Add(textBox, 1, row);
         layout.Controls.Add(browse, 2, row);
+    }
+
+    private void ChooseSound(object? sender, EventArgs eventArgs)
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Choose the completion sound",
+            Filter = "WAV audio (*.wav)|*.wav",
+            CheckFileExists = true
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        _soundPath = dialog.FileName;
+        _sound.Text = "Mute sound";
     }
 
     private async void Convert(object? sender, EventArgs eventArgs)
@@ -184,25 +244,36 @@ internal sealed class ConverterForm : Form
         }
 
         _running = true;
+        _cancellation = new CancellationTokenSource();
         _submit.Enabled = _from.Enabled = _to.Enabled = false;
         _status.Text = "Finding videos...";
         _currentFile.Text = string.Empty;
         _progress.Value = 0;
         try
         {
-            var exitCode = await Program.RunConverter(_script, input, output, ShowProgress);
+            var exitCode = await Program.RunConverter(
+                _script, input, output, ShowProgress, _cancellation.Token);
             _status.Text = exitCode == 0 ? "Conversion finished." : "Conversion finished with errors.";
             if (_sound.Text == "Mute sound")
             {
                 try
                 {
-                    using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("complete.wav");
-                    if (stream is not null) new SoundPlayer(stream).PlaySync();
+                    using var stream = _soundPath is null
+                        ? Assembly.GetExecutingAssembly().GetManifestResourceStream("complete.wav")
+                        : null;
+                    using var player = _soundPath is null ? new SoundPlayer(stream) : new SoundPlayer(_soundPath);
+                    player.PlaySync();
                 }
                 catch { } // A missing audio device must not turn a successful conversion into a failure.
             }
             MessageBox.Show(_status.Text, Text, MessageBoxButtons.OK,
-                exitCode == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+                MessageBoxIcon.None);
+        }
+        catch (OperationCanceledException)
+        {
+            _status.Text = "Conversion cancelled. Unfinished output was removed.";
+            _currentFile.Text = string.Empty;
+            _progress.Value = 0;
         }
         catch (Exception error)
         {
@@ -211,13 +282,17 @@ internal sealed class ConverterForm : Form
         }
         finally
         {
+            _cancellation.Dispose();
+            _cancellation = null;
             _running = false;
             _submit.Enabled = _from.Enabled = _to.Enabled = true;
+            if (_closeWhenStopped) Close();
         }
     }
 
     private void ShowProgress(ConversionUpdate update)
     {
+        if (update.Event == "Temporary") return;
         if (update.Event == "Total")
         {
             _status.Text = update.Total == 0 ? "No videos found." : $"{update.Total} videos found.";
