@@ -2,6 +2,11 @@ name: Build single Windows executable
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (for example, v1.1.4)
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -45,8 +50,15 @@ jobs:
           $result = Start-Process -FilePath $executable -ArgumentList @($inputDir, $outputDir) -WorkingDirectory $inputDir -Wait -PassThru
           if ($result.ExitCode -ne 0 -or -not (Test-Path (Join-Path $outputDir 'sample.mp4'))) { throw "Packaged converter failed (exit $($result.ExitCode))." }
 
-      - name: Upload single executable to release
+      - name: Create release and upload executable
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload v1.1.4 publish/h264.exe --clobber
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          gh release view $env:RELEASE_TAG 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG publish/h264.exe --clobber
+          } else {
+            gh release create $env:RELEASE_TAG publish/h264.exe --title $env:RELEASE_TAG --generate-notes --target $env:GITHUB_SHA
+          }

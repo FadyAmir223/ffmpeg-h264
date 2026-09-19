@@ -28,31 +28,26 @@ Before publishing, a developer needs:
 
 - write access to this repository and permission to run Actions;
 - a GitHub token with repository contents write access when using `gh` locally;
-- the new release tag and notes.
+- the new release tag.
 
-The workflow is [`.github/workflows/build-single-exe.yml`](.github/workflows/build-single-exe.yml). Its last command uploads to the `v1.1.3` release. Change that tag for the next release, commit, and push it before triggering the build.
-
-Create the corresponding GitHub Release first. The executable upload replaces an existing `h264.exe` asset for that tag.
+The workflow is [`.github/workflows/build-single-exe.yml`](.github/workflows/build-single-exe.yml). Enter the new release tag when starting it. After the executable passes its conversion test, the workflow creates the GitHub Release and uploads `h264.exe`. If the release already exists, its executable is replaced.
 
 ### From the GitHub website
 
-1. Commit and push the version change in the workflow.
-2. Open **Releases** → **Draft a new release**, enter the same tag, add notes, then publish it.
-3. Open **Actions** → **Build single Windows executable** → **Run workflow**.
-4. Choose the branch containing the version change and select **Run workflow**.
-5. When the run succeeds, open the release and confirm that `h264.exe` is the asset.
+1. Open **Actions** → **Build single Windows executable** → **Run workflow**.
+2. Choose the branch, enter the new release tag, and select **Run workflow**.
+3. When the run succeeds, open the release and confirm that `h264.exe` is the asset.
 
 ### With GitHub CLI
 
-The CLI can create the release and start the same hosted Windows build:
+The CLI can start the hosted Windows build, which creates the release after the test passes:
 
 ```bash
-gh release create v1.1.3 --title "v1.1.3" --generate-notes
-gh workflow run build-single-exe.yml --ref main
+gh workflow run build-single-exe.yml --ref main -f tag=v1.1.4
 gh run watch
 ```
 
-Use the tag that was committed in the workflow; the `v1.1.1` above is only an example. `gh run watch` follows the most recent run. You can also inspect it later with:
+Use the new release tag in place of `v1.1.4`. `gh run watch` follows the most recent run. You can also inspect it later with:
 
 ```bash
 gh run list --workflow build-single-exe.yml
