@@ -36,12 +36,13 @@ jobs:
           $files = @(Get-ChildItem publish -File)
           if ($files.Count -ne 1 -or $files[0].Name -ne 'h264.exe') { throw "Expected one EXE, found: $($files.Name -join ', ')" }
           $bundle = Join-Path $env:RUNNER_TEMP 'bundle'
-          $inputDir = Join-Path $env:RUNNER_TEMP 'input'
+          $inputDir = Join-Path $env:RUNNER_TEMP 'input-القاهرة'
           $outputDir = Join-Path $env:RUNNER_TEMP 'output'
           New-Item -ItemType Directory $inputDir, $outputDir | Out-Null
           & (Join-Path $bundle 'bin/ffmpeg.exe') -nostdin -hide_banner -loglevel error -f lavfi -i 'color=c=black:s=16x16:d=0.1' -c:v libx264 -pix_fmt yuv420p (Join-Path $inputDir 'sample.mp4')
           if ($LASTEXITCODE -ne 0) { throw 'Could not create test video.' }
-          $result = Start-Process -FilePath (Resolve-Path publish/h264.exe) -ArgumentList @($inputDir, $outputDir) -Wait -PassThru
+          $executable = Resolve-Path publish/h264.exe
+          $result = Start-Process -FilePath $executable -ArgumentList @($inputDir, $outputDir) -WorkingDirectory $inputDir -Wait -PassThru
           if ($result.ExitCode -ne 0 -or -not (Test-Path (Join-Path $outputDir 'sample.mp4'))) { throw "Packaged converter failed (exit $($result.ExitCode))." }
 
       - name: Upload single executable to release

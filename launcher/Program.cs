@@ -45,10 +45,13 @@ internal static class Program
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var process = new ProcessStartInfo("powershell.exe")
+        var powershell = Path.Combine(
+            Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+        var process = new ProcessStartInfo(powershell)
         {
             CreateNoWindow = true,
             UseShellExecute = false,
+            WorkingDirectory = Path.GetDirectoryName(script)!,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
@@ -107,15 +110,14 @@ internal sealed class ConverterForm : Form
     private readonly TextBox _from = FolderDropBox("Drop source folder here, or paste a path");
     private readonly TextBox _to = FolderDropBox("Drop destination folder here, or paste a path");
     private readonly Button _submit = new() { Text = "Convert", AutoSize = true };
-    private readonly Button _sound = new() { Text = "Mute sound", AutoSize = true };
-    private readonly Button _chooseSound = new() { Text = "Choose sound...", AutoSize = true };
+    private readonly Button _sound = new() { Text = "🔊", Width = 36, Height = 29 };
+    private readonly ToolTip _soundTip = new();
     private readonly Label _status = new() { Text = "Choose the source and destination folders.", AutoSize = true };
     private readonly Label _currentFile = new() { AutoEllipsis = true, Dock = DockStyle.Fill, Height = 24 };
     private readonly ProgressBar _progress = new() { Dock = DockStyle.Fill };
     private bool _running;
     private bool _closeWhenStopped;
     private bool _muted;
-    private string? _soundPath;
     private CancellationTokenSource? _cancellation;
 
     internal ConverterForm(string script)
@@ -145,17 +147,10 @@ internal sealed class ConverterForm : Form
 
         AddFolderRow(layout, 0, "From:", _from);
         AddFolderRow(layout, 1, "To:", _to);
-        var actions = new FlowLayoutPanel
-        {
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Anchor = AnchorStyles.Right
-        };
-        actions.Controls.Add(_chooseSound);
-        actions.Controls.Add(_sound);
-        actions.Controls.Add(_submit);
-        layout.Controls.Add(actions, 1, 2);
-        layout.SetColumnSpan(actions, 2);
+        _submit.Anchor = AnchorStyles.Left;
+        _sound.Anchor = AnchorStyles.Right;
+        layout.Controls.Add(_submit, 1, 2);
+        layout.Controls.Add(_sound, 2, 2);
         layout.Controls.Add(_status, 0, 3);
         layout.SetColumnSpan(_status, 3);
         layout.Controls.Add(_currentFile, 0, 4);
@@ -174,7 +169,6 @@ internal sealed class ConverterForm : Form
             SaveMuted();
             UpdateSoundButton();
         };
-        _chooseSound.Click += ChooseSound;
         FormClosing += (_, eventArgs) =>
         {
             if (!_running) return;
@@ -250,21 +244,12 @@ internal sealed class ConverterForm : Form
         catch { } // Settings must not prevent conversion.
     }
 
-    private void UpdateSoundButton() => _sound.Text = _muted ? "Unmute sound" : "Mute sound";
-
-    private void ChooseSound(object? sender, EventArgs eventArgs)
+    private void UpdateSoundButton()
     {
-        using var dialog = new OpenFileDialog
-        {
-            Title = "Choose the completion sound",
-            Filter = "WAV audio (*.wav)|*.wav",
-            CheckFileExists = true
-        };
-        if (dialog.ShowDialog(this) != DialogResult.OK) return;
-        _soundPath = dialog.FileName;
-        _muted = false;
-        SaveMuted();
-        UpdateSoundButton();
+        var action = _muted ? "Unmute completion sound" : "Mute completion sound";
+        _sound.Text = _muted ? "🔇" : "🔊";
+        _sound.AccessibleName = action;
+        _soundTip.SetToolTip(_sound, action);
     }
 
     private async void Convert(object? sender, EventArgs eventArgs)
@@ -299,10 +284,8 @@ internal sealed class ConverterForm : Form
             {
                 try
                 {
-                    using var stream = _soundPath is null
-                        ? Assembly.GetExecutingAssembly().GetManifestResourceStream("complete.wav")
-                        : null;
-                    using var player = _soundPath is null ? new SoundPlayer(stream) : new SoundPlayer(_soundPath);
+                    using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("complete.wav");
+                    using var player = new SoundPlayer(stream);
                     player.PlaySync();
                 }
                 catch { } // A missing audio device must not turn a successful conversion into a failure.

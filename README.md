@@ -14,7 +14,7 @@ It is a single Windows x64 executable. FFmpeg and the converter script are conta
 2. Run `h264.exe` on a Windows 64 bit computer.
 3. Choose the folder containing your videos beside **From**. You can browse, paste its path, or drag the folder from File Explorer onto the large drop box.
 4. Choose a different destination folder beside **To** the same way.
-5. Click **Convert**. The window shows the current video and its progress until conversion is complete, then plays a short sound. Use **Mute sound** to turn it off or **Choose sound** to select another WAV file. Converted files are written as `.mp4` files in the output folder, preserving subfolders.
+5. Click **Convert**. The window shows the current video and its progress until conversion is complete, then plays a short sound. Use the speaker button on the right to mute or unmute it. Converted files are written as `.mp4` files in the output folder, preserving subfolders.
 
 The converter reads `.mp4`, `.mkv`, `.webm`, `.avi`, `.mov`, `.flv`, `.ts`, and `.m4v` files. Files whose output MP4 already exists are skipped. Do not choose the same folder for input and output.
 
@@ -30,7 +30,7 @@ Before publishing, a developer needs:
 - a GitHub token with repository contents write access when using `gh` locally;
 - the new release tag and notes.
 
-The workflow is [`.github/workflows/build-single-exe.yml`](.github/workflows/build-single-exe.yml). Its last command uploads to the `v1.1.1` release. Change that tag for the next release, commit, and push it before triggering the build.
+The workflow is [`.github/workflows/build-single-exe.yml`](.github/workflows/build-single-exe.yml). Its last command uploads to the `v1.1.2` release. Change that tag for the next release, commit, and push it before triggering the build.
 
 Create the corresponding GitHub Release first. The executable upload replaces an existing `h264.exe` asset for that tag.
 
@@ -47,7 +47,7 @@ Create the corresponding GitHub Release first. The executable upload replaces an
 The CLI can create the release and start the same hosted Windows build:
 
 ```bash
-gh release create v1.1.1 --title "v1.1.1" --generate-notes
+gh release create v1.1.2 --title "v1.1.2" --generate-notes
 gh workflow run build-single-exe.yml --ref main
 gh run watch
 ```
