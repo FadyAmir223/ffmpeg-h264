@@ -24,8 +24,8 @@ jobs:
           $bundle = Join-Path $env:RUNNER_TEMP 'bundle'
           $bundleBin = Join-Path $bundle 'bin'
           New-Item -ItemType Directory $bundleBin | Out-Null
-          Copy-Item (Join-Path $sourceBin 'ffmpeg.exe'), (Join-Path $sourceBin '*.dll') $bundleBin
-          Copy-Item h264.bat, h264.ps1 $bundleBin
+          Copy-Item (Join-Path $sourceBin 'ffmpeg.exe'), (Join-Path $sourceBin 'ffprobe.exe'), (Join-Path $sourceBin '*.dll') $bundleBin
+          Copy-Item h264.ps1 $bundleBin
           Copy-Item (Join-Path (Split-Path $sourceBin -Parent) 'LICENSE.txt') $bundle
           Compress-Archive (Join-Path $bundle '*') launcher/bundle.zip
 
@@ -41,14 +41,11 @@ jobs:
           New-Item -ItemType Directory $inputDir, $outputDir | Out-Null
           & (Join-Path $bundle 'bin/ffmpeg.exe') -nostdin -hide_banner -loglevel error -f lavfi -i 'color=c=black:s=16x16:d=0.1' -c:v libx264 -pix_fmt yuv420p (Join-Path $inputDir 'sample.mp4')
           if ($LASTEXITCODE -ne 0) { throw 'Could not create test video.' }
-          "$inputDir`n$outputDir`n`n" | Set-Content (Join-Path $env:RUNNER_TEMP 'input.txt')
-          $result = Start-Process -FilePath (Resolve-Path publish/h264.exe) -RedirectStandardInput (Join-Path $env:RUNNER_TEMP 'input.txt') -RedirectStandardOutput (Join-Path $env:RUNNER_TEMP 'output.txt') -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'error.txt') -Wait -PassThru
-          Get-Content (Join-Path $env:RUNNER_TEMP 'output.txt')
-          Get-Content (Join-Path $env:RUNNER_TEMP 'error.txt')
+          $result = Start-Process -FilePath (Resolve-Path publish/h264.exe) -ArgumentList @($inputDir, $outputDir) -Wait -PassThru
           if ($result.ExitCode -ne 0 -or -not (Test-Path (Join-Path $outputDir 'sample.mp4'))) { throw "Packaged converter failed (exit $($result.ExitCode))." }
 
       - name: Upload single executable to release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload v1.0.0 publish/h264.exe --clobber
+        run: gh release upload v1.0.1 publish/h264.exe --clobber

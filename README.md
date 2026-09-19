@@ -6,19 +6,19 @@
 - 29.97 fps, 2200 kbps video
 - AAC stereo audio, 44.1 kHz, 128 kbps
 
-It is a single Windows x64 executable. FFmpeg and the converter scripts are contained inside it; nothing else needs to be installed or kept next to the EXE.
+It is a single Windows x64 executable. FFmpeg and the converter script are contained inside it; nothing else needs to be installed or kept next to the EXE.
 
 ## Use the converter
 
 1. Download `h264.exe` from the [latest release](https://github.com/FadyAmir223/ffmpeg-h264/releases/latest).
 2. Run `h264.exe` on a Windows 64 bit computer.
-3. When asked for the **INPUT** folder, drag its folder into the window and press Enter.
-4. When asked for the **OUTPUT** folder, drag a different folder into the window and press Enter.
-5. Wait for the summary. Converted files are written as `.mp4` files in the output folder, preserving subfolders.
+3. Use **Browse** beside **From** to choose the folder containing your videos.
+4. Use **Browse** beside **To** to choose a different destination folder.
+5. Click **Convert**. The window shows the current video and its progress until conversion is complete. Converted files are written as `.mp4` files in the output folder, preserving subfolders.
 
 The converter reads `.mp4`, `.mkv`, `.webm`, `.avi`, `.mov`, `.flv`, `.ts`, and `.m4v` files. Files whose output MP4 already exists are skipped. Do not choose the same folder for input and output.
 
-Keep the console window open until the job finishes. A failed file is reported and the rest of the files continue converting.
+Keep the converter window open until the job finishes. A failed file does not stop the remaining files from converting.
 
 ## Build and publish a release
 
@@ -30,7 +30,7 @@ Before publishing, a developer needs:
 - a GitHub token with repository contents write access when using `gh` locally;
 - the new release tag and notes.
 
-The workflow is [`.github/workflows/build-single-exe.yml`](.github/workflows/build-single-exe.yml). Its last command currently uploads to the `v1.0.0` release. Change that tag in the workflow to the intended new tag, commit, and push it before triggering the build.
+The workflow is [`.github/workflows/build-single-exe.yml`](.github/workflows/build-single-exe.yml). Its last command uploads to the `v1.0.1` release. Change that tag for the next release, commit, and push it before triggering the build.
 
 Create the corresponding GitHub Release first. The executable upload replaces an existing `h264.exe` asset for that tag.
 
@@ -62,6 +62,6 @@ GitHub automatically shows source-code ZIP and TAR downloads on release pages. T
 
 ## Local development
 
-The converter behavior lives in [`h264.ps1`](h264.ps1), with [`h264.bat`](h264.bat) as its entry point. The small .NET launcher embeds the batch file, PowerShell script, FFmpeg, and its runtime DLLs into `h264.exe`.
+The converter behavior lives in [`h264.ps1`](h264.ps1). The small Windows Forms launcher embeds the PowerShell script, FFmpeg, and its runtime DLLs into `h264.exe`.
 
 The release workflow is the supported build path because it uses a Windows runner and fetches the matching FFmpeg shared build automatically.
