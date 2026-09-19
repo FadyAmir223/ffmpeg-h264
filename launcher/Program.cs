@@ -124,8 +124,8 @@ internal sealed class ConverterForm : Form
     {
         _script = script;
         Text = "H.264 Old Receiver Converter";
-        ClientSize = new Size(620, 225);
-        MinimumSize = new Size(520, 265);
+        ClientSize = new Size(620, 260);
+        MinimumSize = new Size(520, 300);
         StartPosition = FormStartPosition.CenterScreen;
 
         var layout = new TableLayoutPanel
@@ -141,7 +141,7 @@ internal sealed class ConverterForm : Form
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
