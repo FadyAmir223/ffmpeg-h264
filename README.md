@@ -14,7 +14,7 @@ It is a single Windows x64 executable. FFmpeg and the converter script are conta
 2. Run `h264.exe` on a Windows 64 bit computer.
 3. Use **Browse** beside **From** to choose the folder containing your videos.
 4. Use **Browse** beside **To** to choose a different destination folder.
-5. Click **Convert**. The window shows the current video and its progress until conversion is complete. Converted files are written as `.mp4` files in the output folder, preserving subfolders.
+5. Click **Convert**. The window shows the current video and its progress until conversion is complete, then plays a short sound. Use **Mute sound** to turn the sound off. Converted files are written as `.mp4` files in the output folder, preserving subfolders.
 
 The converter reads `.mp4`, `.mkv`, `.webm`, `.avi`, `.mov`, `.flv`, `.ts`, and `.m4v` files. Files whose output MP4 already exists are skipped. Do not choose the same folder for input and output.
 
@@ -30,7 +30,7 @@ Before publishing, a developer needs:
 - a GitHub token with repository contents write access when using `gh` locally;
 - the new release tag and notes.
 
-The workflow is [`.github/workflows/build-single-exe.yml`](.github/workflows/build-single-exe.yml). Its last command uploads to the `v1.0.1` release. Change that tag for the next release, commit, and push it before triggering the build.
+The workflow is [`.github/workflows/build-single-exe.yml`](.github/workflows/build-single-exe.yml). Its last command uploads to the `v1.1.0` release. Change that tag for the next release, commit, and push it before triggering the build.
 
 Create the corresponding GitHub Release first. The executable upload replaces an existing `h264.exe` asset for that tag.
 
@@ -47,12 +47,12 @@ Create the corresponding GitHub Release first. The executable upload replaces an
 The CLI can create the release and start the same hosted Windows build:
 
 ```bash
-gh release create v1.0.1 --title "v1.0.1" --generate-notes
+gh release create v1.1.0 --title "v1.1.0" --generate-notes
 gh workflow run build-single-exe.yml --ref main
 gh run watch
 ```
 
-Use the tag that was committed in the workflow; the `v1.0.1` above is only an example. `gh run watch` follows the most recent run. You can also inspect it later with:
+Use the tag that was committed in the workflow; the `v1.1.0` above is only an example. `gh run watch` follows the most recent run. You can also inspect it later with:
 
 ```bash
 gh run list --workflow build-single-exe.yml
@@ -65,3 +65,5 @@ GitHub automatically shows source-code ZIP and TAR downloads on release pages. T
 The converter behavior lives in [`h264.ps1`](h264.ps1). The small Windows Forms launcher embeds the PowerShell script, FFmpeg, and its runtime DLLs into `h264.exe`.
 
 The release workflow is the supported build path because it uses a Windows runner and fetches the matching FFmpeg shared build automatically.
+
+The completion sound is adapted from the freedesktop.org sound theme's `complete.oga`, copyright Dr. Richard Boulanger et al, licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).

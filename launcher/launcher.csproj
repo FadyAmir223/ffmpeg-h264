@@ -14,5 +14,6 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="bundle.zip" LogicalName="bundle.zip" />
+    <EmbeddedResource Include="complete.wav" LogicalName="complete.wav" />
   </ItemGroup>
 </Project>

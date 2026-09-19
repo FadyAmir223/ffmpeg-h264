@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Media;
 using System.Reflection;
 using System.Text.Json;
 using System.Windows.Forms;
@@ -82,6 +83,7 @@ internal sealed class ConverterForm : Form
     private readonly TextBox _from = new() { Dock = DockStyle.Fill };
     private readonly TextBox _to = new() { Dock = DockStyle.Fill };
     private readonly Button _submit = new() { Text = "Convert", AutoSize = true };
+    private readonly Button _sound = new() { Text = "Mute sound", AutoSize = true };
     private readonly Label _status = new() { Text = "Choose the source and destination folders.", AutoSize = true };
     private readonly Label _currentFile = new() { AutoEllipsis = true, Dock = DockStyle.Fill, Height = 24 };
     private readonly ProgressBar _progress = new() { Dock = DockStyle.Fill };
@@ -114,7 +116,16 @@ internal sealed class ConverterForm : Form
 
         AddFolderRow(layout, 0, "From:", _from);
         AddFolderRow(layout, 1, "To:", _to);
-        layout.Controls.Add(_submit, 2, 2);
+        var actions = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Anchor = AnchorStyles.Right
+        };
+        actions.Controls.Add(_sound);
+        actions.Controls.Add(_submit);
+        layout.Controls.Add(actions, 1, 2);
+        layout.SetColumnSpan(actions, 2);
         layout.Controls.Add(_status, 0, 3);
         layout.SetColumnSpan(_status, 3);
         layout.Controls.Add(_currentFile, 0, 4);
@@ -125,6 +136,7 @@ internal sealed class ConverterForm : Form
 
         AcceptButton = _submit;
         _submit.Click += Convert;
+        _sound.Click += (_, _) => _sound.Text = _sound.Text == "Mute sound" ? "Unmute sound" : "Mute sound";
         FormClosing += (_, eventArgs) =>
         {
             if (!_running) return;
@@ -180,6 +192,15 @@ internal sealed class ConverterForm : Form
         {
             var exitCode = await Program.RunConverter(_script, input, output, ShowProgress);
             _status.Text = exitCode == 0 ? "Conversion finished." : "Conversion finished with errors.";
+            if (_sound.Text == "Mute sound")
+            {
+                try
+                {
+                    using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("complete.wav");
+                    if (stream is not null) new SoundPlayer(stream).PlaySync();
+                }
+                catch { } // A missing audio device must not turn a successful conversion into a failure.
+            }
             MessageBox.Show(_status.Text, Text, MessageBoxButtons.OK,
                 exitCode == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
         }
