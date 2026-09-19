@@ -323,7 +323,7 @@ internal sealed class ConverterForm : Form
             return;
         }
 
-        _status.Text = $"Video {update.Index} of {update.Total} — {update.Percent}%";
+        _status.Text = $"Video {update.Index} of {update.Total} — {update.Percent} %";
         _currentFile.Text = Path.GetFileName(update.Path) + (update.Event switch
         {
             "Done" => " — Done",
