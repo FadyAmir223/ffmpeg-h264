@@ -97,7 +97,7 @@ try {
                         [Globalization.CultureInfo]::InvariantCulture, [ref]$duration) | Out-Null
                 }
 
-                & $ffmpeg -nostdin -hide_banner -loglevel error -progress pipe:1 -nostats -i $item.FullName -vf 'scale=800:480:force_original_aspect_ratio=decrease,pad=800:480:(ow-iw)/2:(oh-ih)/2' -c:v libx264 -profile:v baseline -level:v 2.0 -pix_fmt yuv420p -r 30000/1001 -b:v 2200k -c:a aac -profile:a aac_low -b:a 128k -ar 44100 -ac 2 $temporary |
+                & $ffmpeg -nostdin -hide_banner -loglevel error -progress pipe:1 -nostats -i $item.FullName -c:v libx264 -profile:v baseline -level:v 2.0 -pix_fmt yuv420p -r 30000/1001 -b:v 2200k -c:a aac -profile:a aac_low -b:a 128k -ar 44100 -ac 2 $temporary |
                     ForEach-Object {
                         if ($duration -gt 0 -and $_ -match '^out_time_us=(\d+)$') {
                             $percent = [int][Math]::Min(99, [Math]::Floor(100 * [double]$Matches[1] / ($duration * 1000000)))
